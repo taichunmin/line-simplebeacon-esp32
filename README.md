@@ -25,10 +25,15 @@ Please ensure you have Arduino IDE installed and the board **disconnected**.
 2. Go into Tools -> Board and select **ESP32 Dev Module** from the list
 3. Under Tools -> Port select the appropriate device *ie. COM1, /dev/cu.SLAB_USBtoUART*
 4. Test uploading to the board by uploading an empty sketch to make sure there are no issues.
-5. [Issue LINE Simple Beacon Hardware ID](https://admin-official.line.me/beacon/register)
-    ![](https://user-images.githubusercontent.com/30001185/50584877-afe5a900-0ea4-11e9-9130-69c3c893a301.png)
-    ![](https://user-images.githubusercontent.com/30001185/50584907-e3283800-0ea4-11e9-8f3f-6645e1797785.png)
-    ![](https://user-images.githubusercontent.com/30001185/50584909-e7545580-0ea4-11e9-97f2-063cfb1bfd8d.png)
+5. [Issue LINE Simple Beacon Hardware ID](https://manager.line.biz/beacon/register)
+    ![](https://i.imgur.com/wHCaMzJ.jpg)
+    ![](https://i.imgur.com/lF2lGDO.jpg)
+    ![](https://i.imgur.com/INgnfju.jpg)
+
+> If you can not find your channel in new [LINE Official Account Manager Beacon Register](https://manager.line.biz/beacon/register), you can try to register at old [LINE@ Manager Beacon Register](https://admin-official.line.me/beacon/register).
+> ![](https://user-images.githubusercontent.com/30001185/50584877-afe5a900-0ea4-11e9-9130-69c3c893a301.png)
+> ![](https://user-images.githubusercontent.com/30001185/50584907-e3283800-0ea4-11e9-8f3f-6645e1797785.png)
+> ![](https://user-images.githubusercontent.com/30001185/50584909-e7545580-0ea4-11e9-97f2-063cfb1bfd8d.png)
 
 ## Upload
 
