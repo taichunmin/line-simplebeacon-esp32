@@ -7,7 +7,7 @@ Arduino code for LINE Simple Beacon work with ESP32
 * [Arduino IDE](https://www.arduino.cc/en/Main/Software)
 * [ESP32-DevKitC](https://www.espressif.com/en/products/hardware/esp32-devkitc/overview)
 * Micro-USB to USB Cable
-* [Create a channel on the LINE Developers console](https://developers.line.me/en/docs/line-login/getting-started/)
+* [Create a channel on the LINE Developers console](https://developers.line.biz/en/docs/messaging-api/getting-started/)
 
 ## Installation
 
