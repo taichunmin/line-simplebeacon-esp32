@@ -1,6 +1,9 @@
-#include <string>
-#include "BLEDevice.h"
+#define HWID "0000000000"
+
+#include "Arduino.h"
 #include "BLEAdvertising.h"
+#include "BLEBeacon.h"
+#include "BLEDevice.h"
 
 /**
  * Bluetooth TX power level(index), it's just a index corresponding to power(dbm).
@@ -15,86 +18,124 @@
  */
 #define POWER_LEVEL ESP_PWR_LVL_P9
 
-#define HWID "0000000000"
-
+bool isAdDataLine = true;
 BLEAdvertising *pAdvertising;
+BLEAdvertisementData adDataLine, adDataIbeacon, adDataEmpty = BLEAdvertisementData();
 
-std::string hexEncode(std::string raw) {
-  const char *hexMap = "0123456789abcdef";
-  std::string hex = "";
-  for(int i=0; i<raw.size(); i++) {
-    hex += hexMap[(raw[i] >> 4) & 0x0F];
-    hex += hexMap[raw[i] & 0x0F];
-  }
-  return hex;
-}
-
-int htoi (unsigned char c)
-{
+byte htoi (byte c) {
   if ('0' <= c && c <= '9') return c - '0';
   if ('A' <= c && c <= 'F') return c - 'A' + 10;
   if ('a' <= c && c <= 'f') return c - 'a' + 10;
   return 0;
 }
 
-std::string hexDecode(std::string hex) {
-  if (hex.size() % 2) return "";
-  std::string raw = "";
-  for(int i=0; i<hex.size(); i+=2) {
-    raw += (char) ( htoi(hex[i]) * 16 + htoi(hex[i+1]) );
+void hexDecode(byte *out, const char *in, size_t inlen) {
+  for (size_t i = 0; i<inlen; i++) {
+    out[i] = (htoi(in[i<<1]) << 4) + htoi(in[(i<<1)+1]);
   }
-  return raw;
 }
 
-bool setLINEBeacon (std::string hwid, std::string msg) {
-  // check hwid
-  if (hwid.size() != 5 || msg.size() > 13) return false;
+void hexEncode(char *out, const byte *in, size_t inlen) {
+  const char *hexMap = "0123456789abcdef";
+  for(size_t i=0; i<inlen; i++) {
+    out[i<<1] = hexMap[(in[i] >> 4) & 0x0F];
+    out[(i<<1)+1] = hexMap[in[i] & 0x0F];
+  }
+  out[inlen<<1] = '\0';
+}
 
-  BLEAdvertisementData oAdvertisementData = BLEAdvertisementData();
-  BLEAdvertisementData oScanResponseData = BLEAdvertisementData();
+void debugByte(const byte *in, size_t inlen) {
+  for (size_t i = 0; i<inlen; i++)
+    Serial.printf(" %02x", in[i]);
+}
+
+BLEAdvertisementData genAdDataLine (const byte *msg, size_t msglen) {
+  BLEAdvertisementData adData;
   BLEUUID line_uuid("FE6F");
 
   // flag
   // LE General Discoverable Mode (2)
   // BR/EDR Not Supported (4)
-  oAdvertisementData.setFlags(0x06);
+  adData.setFlags(0x06);
 
   // LINE Corp UUID
-  oAdvertisementData.setCompleteServices(line_uuid);
+  adData.setCompleteServices(line_uuid);
 
   // Service Data
-  std::string payload = "";
-  payload += (char) 0x02; // Frame Type of the LINE Simple Beacon Frame
-  payload += hwid; // HWID of LINE Simple Beacon
-  payload += 0x7F; // Measured TxPower of the LINE Simple Beacon Frame
-  payload += msg; // Device message of LINE Simple Beacon Frame
-  oAdvertisementData.setServiceData(line_uuid, payload);
+  byte payload[14];
+  size_t pos = 0;
 
-  pAdvertising->setAdvertisementData(oAdvertisementData);
-  pAdvertising->setScanResponseData(oScanResponseData);
-  return true;
+  payload[pos++] = byte(0x02); // Frame Type of the LINE Simple Beacon Frame
+
+  hexDecode(&payload[pos], HWID, 5); // HWID of LINE Beacon
+  pos+=5;
+
+  payload[pos++] = byte(0x7F); // Measured TxPower of the LINE Simple Beacon Frame
+
+  if (msglen > 13) msglen = 13;
+  memcpy(&payload[pos], msg, msglen); // Device message of LINE Simple Beacon Frame
+  pos+=msglen;
+
+  std::string strServiceData((const char *) payload, pos);
+  adData.setServiceData(line_uuid, strServiceData);
+
+  Serial.print("genAdDataLine =");
+  debugByte(payload, pos);
+  Serial.println("");
+
+  return adData;
+}
+
+BLEAdvertisementData genAdDataIbeacon () {
+  byte uuid[16];
+  hexDecode(uuid, "d0d2ce249efc11e582c41c6a7a17ef38", 16); // iBeacon UUID of LINE
+
+  BLEBeacon beacon = BLEBeacon();
+  beacon.setManufacturerId(0x4C00); // fake Apple 0x004C LSB (ENDIAN_CHANGE_U16!)
+  beacon.setProximityUUID(BLEUUID(uuid, 16, false));
+  beacon.setMajor(0x4C49);
+  beacon.setMinor(0x4e45);
+  BLEAdvertisementData adData = BLEAdvertisementData();
+  
+  adData.setFlags(0x04); // BR_EDR_NOT_SUPPORTED 0x04
+  
+  std::string strServiceData = "";
+  
+  strServiceData += (char)26;     // Len
+  strServiceData += (char)0xFF;   // Type
+  strServiceData += beacon.getData(); 
+  adData.addData(strServiceData);
+  return adData;
 }
 
 void setup() {
   // init
   Serial.begin(115200);
+
+  // initial BLE
   BLEDevice::init("");
-  Serial.println(BLEDevice::toString().c_str());
   esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_ADV, POWER_LEVEL);
-  Serial.println(((std::string)"POWER LEVEL: " + char(POWER_LEVEL+'0')).c_str());
   pAdvertising = BLEDevice::getAdvertising();
 
-  Serial.println(((std::string)"LINE HWID: " + HWID).c_str());
-  setLINEBeacon(hexDecode(HWID), hexEncode(std::string((const char*) BLEDevice::getAddress().getNative(), 6)));
+  // print device info
+  Serial.printf("%s, Power Level = %c, HWID = %s\n", BLEDevice::toString().c_str(), char(POWER_LEVEL+'0'), HWID);
+
+  // set adDataIbeacon and adDataLine
+  adDataIbeacon = genAdDataIbeacon();
+  adDataLine = genAdDataLine((const byte *)BLEDevice::getAddress().getNative(), 6);
   
-  // Start advertising
+  // broadcast adDataLine first
+  isAdDataLine = true;
+  pAdvertising->setAdvertisementData(adDataLine);
+  pAdvertising->setScanResponseData(adDataEmpty);
   pAdvertising->start();
-  Serial.println("Advertizing started...");
+  delay(1000);
 }
 
 void loop()
 {
-  // The underlying framework will advertise periodically.
-  // we simply wait here.
-  delay(3000);
+  isAdDataLine = !isAdDataLine;
+  pAdvertising->setAdvertisementData(isAdDataLine ? adDataLine : adDataIbeacon);
+  pAdvertising->start();
+  delay(1000);
 }
