@@ -251,11 +251,12 @@ void setupAdDataFactory () {
 void setupBLE () {
   // 設定 BLEDevice
   BLEDevice::init(DEVICE_NAME);
+  BLEDevice::setEncryptionLevel(ESP_BLE_SEC_ENCRYPT_NO_MITM);
   esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_ADV, POWER_LEVEL);
 
   // 設定伺服器安全性
   pSecurity = new BLESecurity();
-  pSecurity->setAuthenticationMode(ESP_LE_AUTH_REQ_SC_MITM_BOND);
+  pSecurity->setAuthenticationMode(ESP_LE_AUTH_BOND);
   pSecurity->setCapability(ESP_IO_CAP_NONE);
   pSecurity->setInitEncryptionKey(ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK);
   pSecurity->setRespEncryptionKey(ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK);
@@ -289,8 +290,8 @@ void setupBLE () {
   adDataScan.setName(deviceName);
   esp_ble_gap_set_device_name(deviceName.c_str());
   pAdvertising->setScanResponseData(adDataScan);
-  pAdvertising->setMinPreferred(0x06);
-  pAdvertising->setMinPreferred(0x12);
+  pAdvertising->setMinPreferred(0x06); //slave connection min interval, Time = min_interval * 1.25 msec
+  pAdvertising->setMinPreferred(0x10); //slave connection max interval, Time = max_interval * 1.25 msec
   BLEDevice::startAdvertising();
 }
 
